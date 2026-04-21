@@ -141,6 +141,24 @@
 
     .timer.over .timer-value { color: var(--orange); }
 
+    /* Monospace + фиксированная ширина для всех меняющихся цифр —
+       чтобы бар и лейблы не прыгали при смене слайда/блока */
+    #slide-num,
+    #slide-total,
+    #block-time,
+    #total-time,
+    #block-target {
+      font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+      font-variant-numeric: tabular-nums;
+      display: inline-block;
+      text-align: center;
+    }
+
+    #slide-num { min-width: 2ch; text-align: right; }
+    #slide-total { min-width: 2ch; text-align: left; }
+    #block-time, #total-time { min-width: 5ch; text-align: right; }
+    #block-target { min-width: 4ch; text-align: left; }
+
     .timer-btn {
       background: rgba(255, 255, 255, 0.08);
       border: 0;
