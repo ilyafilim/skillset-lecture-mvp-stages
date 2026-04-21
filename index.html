@@ -1,0 +1,1627 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#1E1E28">
+  <title>Этапы создания MVP · Скиллсет</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --orange: #FC6736;
+      --dark: #1E1E28;
+      --white: #FFFFFF;
+      --gray-100: #F4F4F6;
+      --gray-200: #E5E5EA;
+      --gray-400: #9A9AA5;
+      --gray-600: #5A5A65;
+      --status-h: 60px;
+      --nav-h: 64px;
+      --font: 'Golos Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+
+    html, body {
+      height: 100%;
+      font-family: var(--font);
+      color: var(--dark);
+      background: var(--gray-100);
+      letter-spacing: -0.02em;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ============== STATUS BAR ============== */
+    .status-bar {
+      height: var(--status-h);
+      background: var(--dark);
+      color: var(--white);
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      gap: 20px;
+      flex-shrink: 0;
+      font-size: 12px;
+      letter-spacing: -0.02em;
+    }
+
+    .status-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+      flex-shrink: 0;
+    }
+
+    .slide-counter {
+      font-weight: 700;
+      font-size: 16px;
+      background: var(--orange);
+      color: var(--white);
+      padding: 8px 12px;
+      border-radius: 8px;
+      letter-spacing: -0.02em;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .block-name {
+      font-weight: 500;
+      font-size: 12px;
+      opacity: 0.85;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 260px;
+      letter-spacing: -0.02em;
+    }
+
+    .status-center {
+      flex: 1;
+      min-width: 60px;
+    }
+
+    .progress-bar {
+      height: 8px;
+      background: rgba(255, 255, 255, 0.13);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: var(--orange);
+      width: 0%;
+      transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+      border-radius: 999px;
+    }
+
+    .status-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-shrink: 0;
+    }
+
+    .timer {
+      font-variant-numeric: tabular-nums;
+      font-size: 12px;
+      white-space: nowrap;
+      display: flex;
+      align-items: baseline;
+      gap: 4px;
+      letter-spacing: -0.02em;
+    }
+
+    .timer-label {
+      opacity: 0.55;
+      font-weight: 400;
+      text-transform: uppercase;
+      font-size: 12px;
+      letter-spacing: 0.08em;
+    }
+
+    .timer-value {
+      font-weight: 600;
+      font-size: 16px;
+    }
+
+    .timer-target {
+      opacity: 0.45;
+      font-size: 12px;
+    }
+
+    .timer.over .timer-value { color: var(--orange); }
+
+    .timer-btn {
+      background: rgba(255, 255, 255, 0.08);
+      border: 0;
+      color: var(--white);
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s;
+      font-family: var(--font);
+    }
+
+    .timer-btn:hover { background: rgba(255, 255, 255, 0.18); }
+    .timer-btn.paused { background: var(--orange); }
+
+    /* ============== SLIDES ============== */
+    .slides {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      padding: 20px;
+      position: relative;
+      min-height: 0;
+    }
+
+    .slide {
+      width: 100%;
+      max-width: min(1080px, calc((100vh - var(--status-h) - var(--nav-h) - 40px) * 4 / 3));
+      aspect-ratio: 4 / 3;
+      background: var(--white);
+      border-radius: 14px;
+      box-shadow: 0 4px 32px rgba(30, 30, 40, 0.1);
+      padding: clamp(28px, 5vw, 56px) clamp(32px, 6vw, 68px);
+      display: none;
+      flex-direction: column;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .slide.active { display: flex; }
+
+    .slide::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 8px;
+      height: 100%;
+      background: var(--orange);
+    }
+
+    .slide.slide-title::before, .slide.slide-section::before { display: none; }
+
+    /* Мини-подпись «скиллсет.» в углу каждого слайда */
+    .slide::after {
+      content: 'скиллсет.';
+      position: absolute;
+      bottom: 24px;
+      right: 32px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--gray-400);
+      letter-spacing: -0.02em;
+      pointer-events: none;
+    }
+
+    .slide.slide-title::after,
+    .slide.slide-section::after {
+      color: rgba(255, 255, 255, 0.4);
+    }
+
+    /* Typography */
+    .slide .kicker {
+      font-size: clamp(12px, 1.3vw, 16px);
+      font-weight: 700;
+      color: var(--orange);
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      margin-bottom: 16px;
+    }
+
+    .slide h1 {
+      font-size: clamp(32px, 5.2vw, 64px);
+      font-weight: 700;
+      line-height: 1.04;
+      letter-spacing: -0.05em;
+      margin-bottom: 24px;
+    }
+
+    .slide h2 {
+      font-size: clamp(24px, 3vw, 36px);
+      font-weight: 500;
+      line-height: 1.2;
+      letter-spacing: -0.05em;
+      margin-bottom: 24px;
+      color: var(--gray-600);
+    }
+
+    .slide h3 {
+      font-size: clamp(28px, 3.8vw, 44px);
+      font-weight: 700;
+      line-height: 1.08;
+      letter-spacing: -0.05em;
+      margin-bottom: 24px;
+    }
+
+    .slide p {
+      font-size: clamp(16px, 1.9vw, 24px);
+      line-height: 1.45;
+      margin-bottom: 12px;
+      letter-spacing: -0.02em;
+    }
+
+    .slide p.lead {
+      font-size: clamp(20px, 2.2vw, 28px);
+      line-height: 1.35;
+      font-weight: 500;
+      letter-spacing: -0.02em;
+    }
+
+    .slide ul, .slide ol {
+      font-size: clamp(16px, 1.9vw, 24px);
+      line-height: 1.45;
+      padding-left: 24px;
+      letter-spacing: -0.02em;
+    }
+
+    .slide li {
+      margin-bottom: 8px;
+    }
+
+    .slide li::marker { color: var(--orange); font-weight: 700; }
+
+    .slide table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: clamp(12px, 1.6vw, 20px);
+      margin: 8px 0;
+      letter-spacing: -0.02em;
+    }
+
+    .slide th, .slide td {
+      padding: 12px 16px;
+      text-align: left;
+      border-bottom: 1px solid var(--gray-200);
+      vertical-align: top;
+      line-height: 1.35;
+    }
+
+    .slide th {
+      font-weight: 700;
+      background: var(--gray-100);
+      color: var(--dark);
+      font-size: clamp(12px, 1.4vw, 16px);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .slide tr:last-child td { border-bottom: 0; }
+
+    .accent { color: var(--orange); font-weight: 600; }
+
+    .quote {
+      font-size: clamp(20px, 2.6vw, 32px);
+      font-weight: 500;
+      line-height: 1.28;
+      padding: 32px;
+      background: var(--gray-100);
+      border-left: 4px solid var(--orange);
+      margin: 16px 0;
+      letter-spacing: -0.05em;
+      border-radius: 0 8px 8px 0;
+    }
+
+    .big-number {
+      font-size: clamp(72px, 11vw, 160px);
+      font-weight: 700;
+      color: var(--orange);
+      line-height: 0.9;
+      letter-spacing: -0.05em;
+      margin-bottom: 12px;
+    }
+
+    .big-number-label {
+      font-size: clamp(16px, 2vw, 24px);
+      font-weight: 500;
+      color: var(--gray-600);
+      margin-bottom: 32px;
+    }
+
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+      margin: 32px 0;
+    }
+
+    .stat {
+      text-align: center;
+    }
+
+    .stat .num {
+      font-size: clamp(36px, 5.5vw, 72px);
+      font-weight: 700;
+      color: var(--orange);
+      line-height: 1;
+      letter-spacing: -0.05em;
+    }
+
+    .stat .label {
+      font-size: clamp(12px, 1.4vw, 16px);
+      color: var(--gray-600);
+      margin-top: 8px;
+      font-weight: 500;
+      line-height: 1.3;
+      letter-spacing: -0.02em;
+    }
+
+    .pill {
+      display: inline-block;
+      background: var(--orange);
+      color: var(--white);
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 0.7em;
+      font-weight: 600;
+      vertical-align: middle;
+      margin-left: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    /* ============== TWO-COLUMN CONTENT ============== */
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin-top: 8px;
+    }
+
+    /* ============== CASE SLIDES WITH IMAGES ============== */
+    .slide-split {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 32px;
+      align-items: center;
+      flex: 1;
+    }
+
+    .slide-split.image-dominant {
+      grid-template-columns: 1.4fr 1fr;
+    }
+
+    .case-image {
+      width: 100%;
+      max-height: 56vh;
+      object-fit: contain;
+      border-radius: 8px;
+      background: var(--gray-100);
+    }
+
+    .case-image.shadow {
+      box-shadow: 0 8px 32px rgba(30, 30, 40, 0.15);
+    }
+
+    .case-hero {
+      margin: 0 0 16px 0;
+      width: 100%;
+      max-height: 48vh;
+      object-fit: contain;
+      border-radius: 8px;
+    }
+
+    .case-caption {
+      font-size: clamp(11px, 1.1vw, 13px);
+      color: var(--gray-400);
+      font-style: italic;
+      letter-spacing: -0.02em;
+      margin-top: 8px;
+    }
+
+    .case-text h3 {
+      font-size: clamp(22px, 2.8vw, 32px);
+      margin-bottom: 16px;
+    }
+
+    .case-text p,
+    .case-text li {
+      font-size: clamp(14px, 1.6vw, 18px);
+      line-height: 1.4;
+    }
+
+    @media (max-width: 860px) {
+      .slide-split,
+      .slide-split.image-dominant {
+        grid-template-columns: 1fr;
+        gap: 12px;
+      }
+
+      .case-image,
+      .case-hero {
+        max-height: 32vh;
+      }
+    }
+
+    .subtle {
+      color: var(--gray-400);
+      font-size: clamp(12px, 1.3vw, 16px);
+      font-style: italic;
+      letter-spacing: -0.02em;
+    }
+
+    /* Title & section slides */
+    .slide.slide-title, .slide.slide-section {
+      background: var(--dark);
+      color: var(--white);
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+    }
+
+    .slide.slide-title h1, .slide.slide-section h1 { color: var(--white); }
+    .slide.slide-title h2 { color: var(--orange); font-weight: 500; }
+
+    .slide.slide-title .lecturer {
+      margin-top: 32px;
+      color: rgba(255, 255, 255, 0.55);
+      font-size: clamp(14px, 1.6vw, 18px);
+      font-weight: 400;
+    }
+
+    .slide.slide-section .section-num {
+      font-size: clamp(80px, 14vw, 180px);
+      font-weight: 700;
+      color: var(--orange);
+      line-height: 0.9;
+      letter-spacing: -0.05em;
+      margin-bottom: 16px;
+    }
+
+    /* ============== NAVIGATION ============== */
+    .nav {
+      height: var(--nav-h);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 12px;
+      padding: 0 16px;
+      flex-shrink: 0;
+      background: var(--white);
+      border-top: 1px solid var(--gray-200);
+    }
+
+    .nav-btn {
+      height: 44px;
+      border: 0;
+      background: var(--dark);
+      color: var(--white);
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      padding: 0 18px;
+      min-width: 52px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s;
+      font-family: var(--font);
+    }
+
+    .nav-btn:hover { background: var(--orange); }
+    .nav-btn:disabled { opacity: 0.25; cursor: not-allowed; background: var(--dark); }
+    .nav-btn.arrow { font-size: 20px; }
+
+    .nav-jump {
+      background: var(--white);
+      color: var(--dark);
+      border: 1px solid var(--gray-200);
+    }
+
+    .nav-jump:hover {
+      background: var(--gray-100);
+      color: var(--orange);
+    }
+
+    /* ============== MOBILE ============== */
+    @media (max-width: 860px) {
+      :root {
+        --status-h: 48px;
+        --nav-h: 52px;
+      }
+
+      body {
+        overflow: auto;
+      }
+
+      .status-bar {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        padding: 0 12px;
+        gap: 8px;
+        height: var(--status-h);
+        flex-wrap: nowrap;
+      }
+
+      .status-left {
+        flex-shrink: 0;
+        gap: 8px;
+      }
+
+      .slide-counter {
+        font-size: 12px;
+        padding: 4px 8px;
+        border-radius: 4px;
+      }
+
+      .block-name {
+        display: none;
+      }
+
+      .status-center {
+        display: none;
+      }
+
+      .status-right {
+        gap: 8px;
+        flex-shrink: 0;
+        margin-left: auto;
+      }
+
+      .timer {
+        font-size: 10px;
+        gap: 2px;
+      }
+
+      .timer-label { display: none; }
+      .timer-value { font-size: 12px; }
+      .timer-target { display: none; }
+
+      .timer-btn {
+        width: 28px;
+        height: 28px;
+        font-size: 12px;
+        border-radius: 4px;
+      }
+
+      #reset-btn, #help-btn { display: none; }
+
+      .slides {
+        flex-direction: column;
+        padding: 12px;
+        overflow: auto;
+        align-items: stretch;
+        justify-content: flex-start;
+      }
+
+      .slide {
+        aspect-ratio: auto;
+        max-width: 100%;
+        max-height: none;
+        min-height: 0;
+        padding: 24px 20px 20px;
+        border-radius: 12px;
+        justify-content: flex-start;
+        overflow: visible;
+      }
+
+      .slide::before {
+        width: 4px;
+      }
+
+      .slide::after {
+        position: static;
+        display: block;
+        margin-top: 24px;
+        text-align: right;
+        font-size: 11px;
+      }
+
+      .slide.slide-title,
+      .slide.slide-section {
+        min-height: 0;
+        text-align: center;
+        justify-content: flex-start;
+        padding: 40px 24px 32px;
+      }
+
+      .slide.slide-title::after,
+      .slide.slide-section::after {
+        display: none;
+      }
+
+      .slide h1 { font-size: 32px; line-height: 1.08; margin-bottom: 12px; }
+      .slide h2 { font-size: 20px; margin-bottom: 16px; }
+      .slide h3 { font-size: 22px; line-height: 1.12; margin-bottom: 16px; }
+      .slide p { font-size: 15px; margin-bottom: 10px; }
+      .slide p.lead { font-size: 16px; margin-bottom: 12px; }
+      .slide ul, .slide ol { font-size: 15px; padding-left: 20px; }
+      .slide li { margin-bottom: 6px; }
+
+      .slide .kicker {
+        font-size: 11px;
+        margin-bottom: 12px;
+      }
+
+      .slide table {
+        font-size: 12px;
+        margin: 8px 0;
+      }
+      .slide th, .slide td {
+        padding: 8px 10px;
+      }
+      .slide th {
+        font-size: 10px;
+      }
+
+      .stats-row {
+        gap: 12px;
+        margin: 16px 0;
+      }
+      .stat .num { font-size: 36px; }
+      .stat .label { font-size: 11px; }
+
+      .quote {
+        font-size: 16px;
+        padding: 16px;
+        line-height: 1.3;
+        margin: 12px 0;
+      }
+
+      .slide.slide-section .section-num {
+        font-size: 72px;
+        margin-bottom: 8px;
+      }
+
+      .slide-split,
+      .slide-split.image-dominant,
+      .two-col {
+        display: block;
+      }
+
+      .two-col > * + * {
+        margin-top: 16px;
+      }
+
+      .case-image,
+      .case-hero {
+        max-height: 40vh;
+        width: 100%;
+        margin-bottom: 12px;
+      }
+
+      .case-text p, .case-text li {
+        font-size: 14px;
+      }
+
+      .case-caption {
+        font-size: 11px;
+      }
+
+      .nav {
+        position: sticky;
+        bottom: 0;
+        z-index: 10;
+        gap: 8px;
+        padding: 0 12px;
+        height: var(--nav-h);
+      }
+
+      .nav-btn {
+        padding: 0 14px;
+        font-size: 13px;
+        height: 40px;
+        min-width: 48px;
+      }
+
+      .nav-btn.arrow {
+        font-size: 18px;
+      }
+
+      #jump-start { display: none; }
+    }
+
+    @media (max-width: 480px) {
+      .slide { padding: 20px 16px 16px; }
+      .slide h1 { font-size: 28px; }
+      .slide h3 { font-size: 20px; }
+      .slide p, .slide ul, .slide ol { font-size: 14px; }
+      .slide p.lead { font-size: 15px; }
+      .slide .quote { font-size: 15px; padding: 14px; }
+      .stat .num { font-size: 32px; }
+      .slide table { font-size: 11px; }
+      .slide th, .slide td { padding: 6px 8px; }
+    }
+
+    @media (min-width: 861px) and (min-height: 900px) {
+      .slide { padding: 72px 84px; }
+    }
+
+    /* Help overlay */
+    .help {
+      position: fixed;
+      bottom: 80px;
+      right: 20px;
+      background: var(--dark);
+      color: var(--white);
+      padding: 16px 20px;
+      border-radius: 10px;
+      font-size: 13px;
+      line-height: 1.6;
+      box-shadow: 0 8px 32px rgba(30, 30, 40, 0.25);
+      z-index: 100;
+      display: none;
+      max-width: 280px;
+    }
+
+    .help.visible { display: block; }
+
+    .help h4 {
+      font-size: 13px;
+      margin-bottom: 8px;
+      color: var(--orange);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .help kbd {
+      background: rgba(255, 255, 255, 0.15);
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 11px;
+    }
+  </style>
+</head>
+<body>
+  <!-- STATUS BAR -->
+  <header class="status-bar">
+    <div class="status-left">
+      <div class="slide-counter"><span id="slide-num">1</span> / <span id="slide-total">47</span></div>
+      <div class="block-name" id="block-name">Блок 1 · Вступление</div>
+    </div>
+    <div class="status-center">
+      <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+    </div>
+    <div class="status-right">
+      <div class="timer" id="block-timer">
+        <span class="timer-label">Блок</span>
+        <span class="timer-value" id="block-time">00:00</span>
+        <span class="timer-target">/ <span id="block-target">5:00</span></span>
+      </div>
+      <div class="timer" id="total-timer">
+        <span class="timer-label">Всего</span>
+        <span class="timer-value" id="total-time">00:00</span>
+        <span class="timer-target">/ 90:00</span>
+      </div>
+      <button class="timer-btn paused" id="pause-btn" title="Пауза / Старт (P)">▶</button>
+      <button class="timer-btn" id="reset-btn" title="Сбросить таймер (R)">↻</button>
+      <button class="timer-btn" id="help-btn" title="Подсказки (H)">?</button>
+    </div>
+  </header>
+
+  <!-- SLIDES -->
+  <main class="slides" id="slides">
+
+    <!-- ============== БЛОК 1: ВСТУПЛЕНИЕ ============== -->
+
+    <!-- Slide 1: Title -->
+    <section class="slide slide-title active" data-block="1">
+      <div>
+        <div class="kicker">Скиллсет. · лекция 3 из 4</div>
+        <h1>Этапы<br>создания MVP</h1>
+        <h2>Как дойти до PMF, не построив лишнего</h2>
+        <div class="lecturer">Илья Филимоненков · 21 апреля 2026 · Акселератор ВШЭ</div>
+      </div>
+    </section>
+
+    <!-- Slide 2: 90% стартапов -->
+    <section class="slide" data-block="1">
+      <div class="kicker">Почему эта лекция</div>
+      <h3>Статистика, которая должна пугать</h3>
+      <div class="stats-row">
+        <div class="stat"><div class="num">90%</div><div class="label">стартапов<br>не доживают до PMF</div></div>
+        <div class="stat"><div class="num">42%</div><div class="label">умирают потому что<br>продукт никому не нужен</div></div>
+        <div class="stat"><div class="num">1/10</div><div class="label">гипотез подтверждается<br>в среднем</div></div>
+      </div>
+      <p class="lead">В прошлой лекции мы разобрали, <span class="accent">как придумать ценность</span>. Сегодня — <span class="accent">как её проверить, не построив лишнего</span>.</p>
+    </section>
+
+    <!-- Slide 3: Что унесёте -->
+    <section class="slide" data-block="1">
+      <div class="kicker">План на 90 минут</div>
+      <h3>Что вы унесёте с этой лекции</h3>
+      <ol>
+        <li>Рабочее определение MVP (не из учебника)</li>
+        <li><span class="accent">7 слепых зон</span>, из-за которых MVP не доезжает до PMF</li>
+        <li>Чеклист из 7 пунктов, который надо закрыть <span class="accent">до</span> строчки кода</li>
+        <li>Каталог из 6 форматов MVP <span class="accent">без разработки</span></li>
+        <li>Правила, если всё-таки нужен код (и признаки, что пора)</li>
+      </ol>
+    </section>
+
+    <!-- Slide 4: Откуда методология -->
+    <section class="slide" data-block="1">
+      <div class="kicker">Источник методологии</div>
+      <h3>На чём строится лекция</h3>
+      <ul>
+        <li><strong>JTBD</strong> — ценность через работы клиента, сегменты, Core/Big Jobs</li>
+        <li><strong>RAT</strong> — поиск и проверка самых рискованных допущений</li>
+        <li><strong>Unit-экономика</strong> — сходится ли модель ещё до первой строчки кода</li>
+        <li><strong>PMF-спектр</strong> — где продукт сейчас и что делать дальше</li>
+      </ul>
+    </section>
+
+    <!-- ============== БЛОК 2: ЧТО ТАКОЕ MVP ============== -->
+
+    <!-- Slide 5: Section -->
+    <section class="slide slide-section" data-block="2">
+      <div>
+        <div class="kicker">Блок 2 · 10 минут</div>
+        <div class="section-num">01</div>
+        <h1>Что такое MVP<br>на самом деле</h1>
+      </div>
+    </section>
+
+    <!-- Slide 6: MVP = покупка знания -->
+    <section class="slide" data-block="2">
+      <div class="kicker">Главная переформулировка</div>
+      <h3>MVP — это не запуск продукта.<br>Это покупка знания</h3>
+      <div class="quote">Цель MVP — <span class="accent">максимально быстро и дёшево купить знание</span>: есть PMF или нужно пивотиться.</div>
+      <p>Когда вы говорите «мы делаем MVP» — настоящий вопрос: <strong>какое знание вы покупаете</strong> и <strong>сколько оно стоит</strong>?</p>
+      <p class="lead accent">Наиболее вероятный исход запуска — провал. Значит фокус не на «как запустить», а на «как быстрее убить идею, если она нежизнеспособна».</p>
+    </section>
+
+    <!-- Slide 7: MVP vs RAT vs прототип vs продукт -->
+    <section class="slide" data-block="2">
+      <div class="kicker">Что с чем не путать</div>
+      <h3>MVP ≠ RAT ≠ прототип ≠ продукт</h3>
+      <table>
+        <thead>
+          <tr><th>Сущность</th><th>Цель</th><th>Как долго</th><th>Нужен код?</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><strong>RAT</strong></td><td>Проверить одно рискованное допущение</td><td>Часы–2 недели</td><td>Обычно нет</td></tr>
+          <tr><td><strong>Прототип</strong></td><td>Проверить UX/поток/концепт на бумаге</td><td>Часы–дни</td><td>Нет</td></tr>
+          <tr><td><strong>MVP</strong></td><td>Проверить набор допущений на <em>реальных пользователях</em></td><td>2–6 недель</td><td>Иногда</td></tr>
+          <tr><td><strong>Продукт</strong></td><td>Масштабироваться на подтверждённом PMF</td><td>Бесконечно</td><td>Да</td></tr>
+        </tbody>
+      </table>
+      <p class="subtle">Типовая ошибка фаундера: называет MVP-ом то, что по факту — прототип (нет реальных пользователей) или сразу продукт (разработка 6+ месяцев).</p>
+    </section>
+
+    <!-- Slide 8: PMF-спектр -->
+    <section class="slide" data-block="2">
+      <div class="kicker">Где вы сейчас на карте</div>
+      <h3>Спектр PMF: 4 стадии</h3>
+      <table>
+        <thead>
+          <tr><th>Стадия</th><th>Сегмент и ценность</th><th>Спрос</th><th>Риск перехода</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><strong>Отсутствует</strong></td><td>Не найдены</td><td>Нет</td><td><strong class="accent">80%</strong> не найдут</td></tr>
+          <tr><td><strong>Слабый</strong></td><td>Есть гипотезы</td><td>Редкие, немасштабируемые</td><td><strong class="accent">60%</strong> не сойдётся экономика</td></tr>
+          <tr><td><strong>Сильный</strong></td><td>Подтверждены</td><td>Повторяемые, есть каналы</td><td><strong class="accent">40%</strong> сломаются при масштабе</td></tr>
+          <tr><td><strong>Отрывают с руками</strong></td><td>Очевидны</td><td>Клиенты сами находят</td><td>Не умереть от спроса</td></tr>
+        </tbody>
+      </table>
+      <p class="lead">MVP нужен, чтобы пройти первый переход: <span class="accent">отсутствует → слабый</span>. Это 80% вероятности провала.</p>
+    </section>
+
+    <!-- Slide 9: Кейс Dropbox -->
+    <section class="slide" data-block="2">
+      <div class="kicker">Кейс · B2C · США</div>
+      <h3>Dropbox: MVP был видео на 3 минуты</h3>
+      <div class="two-col">
+        <div>
+          <p><strong>Проблема:</strong> чтобы показать синк файлов — нужна рабочая инфраструктура. Месяцы разработки до первой проверки спроса.</p>
+          <p><strong>Решение Хьюстона:</strong> снял 3-минутное видео, где показал <em>как будто</em> работающий продукт. Опубликовал на Hacker News.</p>
+        </div>
+        <div>
+          <p><strong>Результат за ночь:</strong></p>
+          <ul>
+            <li>За ночь <strong>+70 000 подписок</strong> на бета-доступ (с 5 000 до 75 000)</li>
+            <li>Проверили ключевое допущение: «людям нужен синк», не написав движка</li>
+          </ul>
+          <p class="accent" style="margin-top:12px;">Видео обошлось в несколько дней. Код — обошёлся бы в полгода.</p>
+        </div>
+      </div>
+      <p class="subtle">Dropbox, 2008. Главное: MVP не обязан быть продуктом. Он обязан дать знание.</p>
+    </section>
+
+    <!-- ============== БЛОК 3: 7 ПРОПУСКОВ ============== -->
+
+    <!-- Slide 10: Section -->
+    <section class="slide slide-section" data-block="3">
+      <div>
+        <div class="kicker">Блок 3 · 12 минут</div>
+        <div class="section-num">02</div>
+        <h1>7 слепых зон<br>на пути к PMF</h1>
+      </div>
+    </section>
+
+    <!-- Slide 11: Пропуск №1 — код до сегмента -->
+    <section class="slide" data-block="3">
+      <div class="kicker">Пропуск №1 · самый частый</div>
+      <h3>Прыгнули в код до подтверждения сегмента и ценности</h3>
+      <p class="lead">Команда делает продукт 6–12 месяцев «в стол», потом выкатывает и удивляется, что никто не пришёл.</p>
+      <p><strong>Анти-кейс — Quibi:</strong> $1,75 млрд инвестиций, 2 года разработки, звёздный контент. Закрылись через 6 месяцев после запуска. Не проверили допущение, что люди захотят смотреть премиум-контент короткими кусками <em>именно в мобильном приложении</em>.</p>
+      <p class="accent">Правило: сегмент + ценность подтверждаются <span class="accent">до</span> разработки. Интервью, RAT, лендинг — дешевле продакшен-кода в 100 раз.</p>
+    </section>
+
+    <!-- Slide 12: Пропуск №2 — демография -->
+    <section class="slide" data-block="3">
+      <div class="kicker">Пропуск №2</div>
+      <h3>Сегментируют по демографии,<br>а не по работам</h3>
+      <p class="lead">«Наша ЦА — женщины 25–45 с доходом выше среднего из городов-миллионников».</p>
+      <ul>
+        <li>Демография не говорит, <span class="accent">какую ценность создавать</span></li>
+        <li>Бухгалтер 25 и бухгалтер 45 — <strong>один</strong> сегмент (одни Core Jobs)</li>
+        <li>Бухгалтер и финдиректор — <strong>разные</strong> сегменты (разные Core Jobs)</li>
+      </ul>
+      <p class="accent">Сегмент — это совокупность Core Jobs + Big Jobs + барьеров + привычек. Демография идёт вторым критерием, а не первым.</p>
+    </section>
+
+    <!-- Slide 13: Пропуск №3 — не делают RAT -->
+    <section class="slide" data-block="3">
+      <div class="kicker">Пропуск №3</div>
+      <h3>Проверяют весь продукт сразу,<br>а не рискованные допущения по одному</h3>
+      <p class="lead">«Мы запустим MVP и посмотрим, как пойдёт». Если «не пойдёт» — невозможно понять <span class="accent">что именно</span> не сработало.</p>
+      <p>Любой продукт = <strong>цепочка допущений</strong>. Каждое может быть ложным. Проверять надо <strong>по одному</strong>, начиная с самого рискованного.</p>
+      <div class="quote" style="font-size:clamp(18px,2.4vw,26px);">Risk Score = Вероятность × Последствия ÷ Стоимость проверки</div>
+      <p class="subtle">Формула RAT. Рискованное и дешёвое — проверяем первым. Не «дорогое и страшное».</p>
+    </section>
+
+    <!-- Slide 14: Пропуск №4 — MVP дольше 4 недель -->
+    <section class="slide" data-block="3">
+      <div class="kicker">Пропуск №4</div>
+      <h3>MVP дольше 4 недель<br>перестаёт быть MVP</h3>
+      <p class="lead">Если вы делаете «минимальный» продукт 3–6 месяцев — это не MVP. Это просто медленный продукт, который не успеет принести знание.</p>
+      <p><strong>Анти-кейс — Color Labs:</strong> $41 млн инвестиций (до запуска!), год разработки фото-соцсети, нулевой product-market fit после релиза. Закрылись через 2 года.</p>
+      <p class="accent">Правило: MVP — <span class="accent">не дольше 4 недель</span>. Не влезает — режьте объём. Не режется — значит вы делаете продукт, а не MVP.</p>
+    </section>
+
+    <!-- Slide 15: Пропуск №5 — набор альтернатив -->
+    <section class="slide" data-block="3">
+      <div class="kicker">Пропуск №5</div>
+      <h3>Не видят реальных конкурентов</h3>
+      <p class="lead">«У нас нет конкурентов» — самая опасная фраза фаундера. Конкуренты есть всегда — просто не в вашей категории, а <span class="accent">на той же работе клиента</span>.</p>
+      <p>В JTBD для этого есть термин — <strong>набор альтернатив</strong> (Consideration Set): все способы, которыми клиент уже решает свою работу. Три типа:</p>
+      <ul>
+        <li><strong>Прямые</strong>: делают то же самое</li>
+        <li><strong>Косвенные</strong>: решают ту же работу иначе (Zoom vs личная встреча)</li>
+        <li><strong>Не-потребление</strong>: клиент мирится и ничего не делает (часто конкурент №1)</li>
+      </ul>
+      <p class="subtle">На интервью спрашивайте: «Что вы делали для этой работы <em>в прошлый раз</em>?» — получите реальный набор альтернатив.</p>
+    </section>
+
+    <!-- Slide 16: Пропуск №6 — юнит-экономика -->
+    <section class="slide" data-block="3">
+      <div class="kicker">Пропуск №6</div>
+      <h3>Не считают юнит-экономику до разработки</h3>
+      <p class="lead">«Сначала сделаем продукт, потом разберёмся с экономикой». К моменту «потом» деньги кончились.</p>
+      <p><strong>Анти-кейс — Juicero:</strong> $120 млн инвестиций, соковыжималка за $400, пакеты с соком за $5–8. Журналисты показали, что пакеты можно выжать руками. Экономика не сходилась ни в одном сценарии.</p>
+      <div class="quote" style="font-size:clamp(16px,2vw,22px);">Users × (−CPUser + C1 × AMPPU) = Profit<br><span style="font-size:0.7em; opacity:0.7;">Стоимость привлечения × количество покупок × маржа. Если расходы > доходов — провал.</span></div>
+    </section>
+
+    <!-- Slide 17: Пропуск №7 — привычки -->
+    <section class="slide" data-block="3">
+      <div class="kicker">Пропуск №7</div>
+      <h3>Требуют от пользователей<br>сменить привычку</h3>
+      <p class="lead">74% людей уверены, что смогут изменить поведение. Реально меняют — 51%. И это — в оптимальных условиях.</p>
+      <ul>
+        <li>Формировать новую привычку — <strong>дорого и долго</strong>. Amazon формировал привычку «покупать книги онлайн» 10 лет</li>
+        <li>Стартапу ресурсов обычно не хватит. А если хватит — конкурент переиспользует сформированную вами привычку</li>
+      </ul>
+      <p><strong>Анти-кейс — Google Glass:</strong> очки с компьютером за $1 500. Требовали носить устройство на лице в общественных местах, использовать голосовые команды, привыкать к новому интерфейсу. Технология работала — привычка не сформировалась. В 2015 Google свернул потребительскую версию (потом перезапустил для B2B — там встроить в рабочий процесс было проще).</p>
+      <p class="accent">Правило для MVP: <span class="accent">встраивайтесь в существующие привычки</span>, не требуйте их ломать. Это одна из самых частых причин, почему технически хороший продукт не взлетает.</p>
+    </section>
+
+    <!-- ============== БЛОК 4: ТРЕКШН-КАРТА ============== -->
+
+    <!-- Slide 18: Section -->
+    <section class="slide slide-section" data-block="4">
+      <div>
+        <div class="kicker">Блок 4 · 10 минут</div>
+        <div class="section-num">03</div>
+        <h1>Правильная<br>последовательность</h1>
+      </div>
+    </section>
+
+    <!-- Slide 19: Customer Discovery → Channel Testing -->
+    <section class="slide" data-block="4">
+      <div class="kicker">Два главных этапа</div>
+      <h3>Customer Discovery → Channel Testing</h3>
+      <table>
+        <thead>
+          <tr><th>Этап</th><th>Что проверяем</th><th>Инструменты</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><strong>1. Customer Discovery</strong><br><span class="subtle">поиск спроса</span></td><td>Сегмент, ценность, готовность платить</td><td>JTBD-интервью, RAT, MVP, лендинг</td></tr>
+          <tr><td><strong>2. Channel Testing</strong><br><span class="subtle">поиск каналов</span></td><td>Можем ли привлекать клиентов за целевую цену</td><td>A/B реклама, SEO-тесты, партнёрка</td></tr>
+        </tbody>
+      </table>
+      <p class="lead accent">Channel Testing начинается <span class="accent">только после</span> подтверждённого Customer Discovery.</p>
+      <p class="subtle">Запустить рекламу раньше — значит тратить деньги на привлечение к непроверенной ценности. Деньги уходят, а знание не появляется.</p>
+    </section>
+
+    <!-- Slide 20: Цепочка 8 допущений -->
+    <section class="slide" data-block="4">
+      <div class="kicker">Карта допущений продукта</div>
+      <h3>8 вопросов, на которые нужен «да»</h3>
+      <ol>
+        <li>На рынке достаточно денег для наших амбиций?</li>
+        <li>Есть большие сегменты, для которых мы создаём добавочную ценность?</li>
+        <li>Можем ли получать целевую маржу на юнит?</li>
+        <li>Клиенты покупают? Мы знаем <em>эту</em> ценность?</li>
+        <li>На потоке клиентов получаем целевую маржу?</li>
+        <li>Можем привлекать нужное количество клиентов по целевой стоимости?</li>
+        <li>Конвертируем в оплату / повторные оплаты?</li>
+        <li>Получаем целевую прибыль?</li>
+      </ol>
+      <p class="accent">Какое из них — <em>самое рискованное прямо сейчас</em>? Туда идёт MVP.</p>
+    </section>
+
+    <!-- Slide 21: Не перескакивать -->
+    <section class="slide" data-block="4">
+      <div class="kicker">Правило последовательности</div>
+      <h3>Этапы нельзя перескакивать</h3>
+      <p class="lead">Типовое «у нас уже есть MVP, давайте сразу запустим рекламу» = прыжок через непроверенный сегмент и ценность.</p>
+      <ul>
+        <li>Если этап не подтверждён — <strong>не переходите</strong> на следующий</li>
+        <li>Если <em>вынуждены</em> перескочить (сроки, инвесторы) — <strong>зафиксируйте</strong>, какое допущение осталось непроверенным</li>
+        <li>Регулярно возвращайтесь к незакрытым допущениям. Иначе риск «накапливается»</li>
+      </ul>
+      <p class="subtle accent">Самая болезненная ошибка — инвестировать в масштаб до подтверждения ценности. Так сгорели Quibi, Color Labs, Juicero и сотни менее известных.</p>
+    </section>
+
+    <!-- ============== БЛОК 5: ЧЕКЛИСТ ДО ============== -->
+
+    <!-- Slide 22: Section -->
+    <section class="slide slide-section" data-block="5">
+      <div>
+        <div class="kicker">Блок 5 · 10 минут</div>
+        <div class="section-num">04</div>
+        <h1>Чеклист<br>ДО начала MVP</h1>
+      </div>
+    </section>
+
+    <!-- Slide 23: 7 пунктов -->
+    <section class="slide" data-block="5">
+      <div class="kicker">Главный чеклист лекции</div>
+      <h3>7 пунктов, которые должны быть закрыты ДО первой строчки кода</h3>
+      <ol>
+        <li>Сегмент выбран <strong>по работам</strong>, не по демографии</li>
+        <li>Core Job и Big Job сегмента <strong>сформулированы</strong></li>
+        <li>Гипотеза ценностного предложения <strong>написана по формуле</strong></li>
+        <li>Топ-5 <strong>RAT-допущений</strong> определены и отранжированы</li>
+        <li>Юнит-экономика <strong>на бумаге сходится</strong></li>
+        <li>Выбрана одна из <strong>механик</strong> создания ценности (разбирали 9 базовых на прошлой лекции)</li>
+        <li>Учтены <strong>привычки</strong> пользователей: встраиваемся или ломаем?</li>
+      </ol>
+      <p class="subtle accent">Пройдёмся по каждому.</p>
+    </section>
+
+    <!-- Slide 24: Пункты 1-3 -->
+    <section class="slide" data-block="5">
+      <div class="kicker">Пункты 1–3 · Про «кто и что»</div>
+      <h3>Сегмент · Core/Big Jobs · Гипотеза ЦП</h3>
+      <ul>
+        <li><strong>1. Сегмент:</strong> группа людей с <em>похожим графом работ</em>. Проверочный вопрос — «на какую работу нас нанимают?»</li>
+        <li><strong>2. Core Job:</strong> что продукт делает <em>полностью</em>. <strong>Big Job:</strong> зачем клиент приходит к этой работе</li>
+        <li><strong>3. Гипотеза ЦП</strong> по формуле: «Когда [контекст + триггер] — я хочу [Core Job] — чтобы [Big Job + эмоция]»</li>
+      </ul>
+      <p class="subtle">Если не можете сформулировать — недобрали интервью. Это сигнал вернуться в Customer Discovery, а не идти в MVP.</p>
+    </section>
+
+    <!-- Slide 25: Пункты 4-5 -->
+    <section class="slide" data-block="5">
+      <div class="kicker">Пункты 4–5 · Про риски и экономику</div>
+      <h3>RAT-допущения · юнит-экономика</h3>
+      <p><strong>4. RAT:</strong> выпишите 5–10 допущений. По каждому — Risk Score. Первыми проверяйте 5 самых рискованных.</p>
+      <p><strong>5. Юнит-экономика на бумаге.</strong> Без реальных данных — по <em>разумным предположениям</em>. Главное — пройти мысленный тест:</p>
+      <div class="quote" style="font-size:clamp(16px,2vw,22px);">Users × (−CPUser + C1 × AMPPU) = Profit<br><span style="font-size:0.7em; opacity:0.7;">Стоимость привлечения × количество покупок × маржа. Если расходы > доходов — провал.<br>Каждый пользователь должен давать больше дохода, чем стоит его привлечение.</span></div>
+      <p class="accent">Если <em>даже в оптимистичном сценарии</em> экономика не сходится — продукт не взлетит. Возвращайтесь к сегменту и ценности.</p>
+    </section>
+
+    <!-- Slide 26: Пункты 6-7 -->
+    <section class="slide" data-block="5">
+      <div class="kicker">Пункты 6–7 · Про ценность и поведение</div>
+      <h3>Механика · привычки</h3>
+      <p><strong>6. Механика</strong> — не изобретайте, выбирайте одну из 9 базовых, которые разбирали на прошлой лекции:</p>
+      <ul>
+        <li>Выполнить работу лучше по критериям сегмента</li>
+        <li>Убить работу (убрать шаг)</li>
+        <li>Починить проблему в цепочке клиента</li>
+        <li>Выполнить больше работ одним решением</li>
+      </ul>
+      <p><strong>7. Привычки</strong> — решите <em>до</em> MVP: вы встраиваетесь в существующую привычку (дешевле) или формируете новую (дороже и рискованнее)?</p>
+    </section>
+
+    <!-- ============== БЛОК 6: ФОРМАТЫ БЕЗ КОДА ============== -->
+
+    <!-- Slide 27: Section -->
+    <section class="slide slide-section" data-block="6">
+      <div>
+        <div class="kicker">Блок 6 · 20 минут</div>
+        <div class="section-num">05</div>
+        <h1>6 форматов MVP<br>без строчки кода</h1>
+      </div>
+    </section>
+
+    <!-- Slide 28: Принцип выбора -->
+    <section class="slide" data-block="6">
+      <div class="kicker">Главный принцип блока</div>
+      <h3>Формат выбирают под допущение, а не наоборот</h3>
+      <p class="lead">Сначала определите, <span class="accent">какое допущение</span> проверяете. Потом выбираете самый дешёвый способ его проверить.</p>
+      <table>
+        <thead>
+          <tr><th>Что проверяем</th><th>Подходящий формат</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Есть ли проблема / работа</td><td>Глубинные интервью</td></tr>
+          <tr><td>Готовы ли платить</td><td>Лендинг с предзаказом</td></tr>
+          <tr><td>Будут ли пользоваться</td><td>Волшебник Оз / Консьерж</td></tr>
+          <tr><td>Насколько интересна фича</td><td>Fake Door</td></tr>
+          <tr><td>Работает ли весь флоу</td><td>Лоскутный MVP</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- Slide 29: Формат 1 — Интервью -->
+    <section class="slide" data-block="6">
+      <div class="kicker">Формат 1 · Глубинные интервью</div>
+      <h3>15–20 JTBD-интервью</h3>
+      <p class="lead">Самый дешёвый и самый частый формат. Проверяет: есть ли работа, какие Core/Big Jobs, кто конкуренты, какие критерии успеха.</p>
+      <p><strong>Кейс — SkyEng (B2C · РФ):</strong> первые «уроки» проходили через Google Docs и Skype. Никакой платформы, никакого приложения. Проверяли: <em>готовы ли русские студенты учить английский онлайн</em>. Подтвердили → только потом написали платформу Vimbox.</p>
+      <p class="subtle">Правило: интервью не идут без сформулированной гипотезы. Иначе — поговорили и забыли.</p>
+    </section>
+
+    <!-- Slide 30: Формат 2 — Лендинг -->
+    <section class="slide" data-block="6">
+      <div class="kicker">Формат 2 · Лендинг + предзаказ</div>
+      <h3>Лендинг с формой предзаказа</h3>
+      <p class="lead">Проверяет готовность <strong>платить</strong>. Не «нравится ли», а «достаёте ли карту».</p>
+      <p><strong>Кейс — Buffer (B2B · США):</strong> Джоэл Гаскон сделал 2 лендинга за выходные: на первом обещал продукт, на втором — показывал страницу с ценами и «click to subscribe». Люди кликали по тарифам — он понял, что платить готовы. Продукт начал писать только после этого.</p>
+      <p><strong>Метрики успеха:</strong> конверсия в заявку &gt; 3–5%, реальные оплаты (даже если продукт ещё не готов — деньги можно вернуть).</p>
+    </section>
+
+    <!-- Slide 31: Формат 3 — Волшебник Оз -->
+    <section class="slide" data-block="6">
+      <div class="kicker">Формат 3 · Волшебник Оз</div>
+      <h3>«Волшебник из страны Оз» (Wizard of Oz) — ручная имитация</h3>
+      <p class="lead">Пользователю <em>кажется</em>, что продукт работает автоматически. На самом деле за ширмой — человек, делающий работу руками.</p>
+      <p><strong>Кейс — Zappos (B2C · США):</strong> основатель Ник Свинмурн ходил в обычные магазины обуви, фотографировал модели, выкладывал на сайт. Когда приходил заказ — шёл в магазин, покупал обувь и отправлял клиенту. Никакого склада. Проверял: <em>готовы ли люди покупать обувь онлайн без примерки</em>.</p>
+      <p class="subtle">Через 10 лет Amazon купил Zappos за $1.2 млрд.</p>
+    </section>
+
+    <!-- Slide 32: Формат 4 — Консьерж -->
+    <section class="slide" data-block="6">
+      <div class="kicker">Формат 4 · Консьерж</div>
+      <h3>Консьерж-MVP (Concierge) — делаем за клиента руками</h3>
+      <p class="lead">В отличие от Волшебника Оз, клиент <strong>знает</strong>, что работу делает человек. Цель — понять, какую именно ценность создаёт сервис.</p>
+      <p><strong>Кейс — Qlean (B2C · РФ, 2014):</strong> первые месяцы основатели Роман и Никита сами ездили убирать квартиры. Без приложения, только сайт и звонки. Проверяли: есть ли спрос на клининг с прозрачной ценой и фиксированным качеством.</p>
+      <p><strong>Кейс — Food on the Table (B2C · США):</strong> основатель лично готовил меню для 10 семей в неделю. Через год стало 10 000 семей — <em>тогда</em> написали софт.</p>
+    </section>
+
+    <!-- Slide 33: Формат 5 — Fake Door -->
+    <section class="slide" data-block="6">
+      <div class="kicker">Формат 5 · Fake Door / Smoke Test</div>
+      <h3>Кнопка, за которой ничего нет</h3>
+      <p class="lead">Добавляете в существующий продукт (или лендинг) кнопку/раздел новой фичи. Кликают — смотрите конверсию. Нет фичи за кнопкой — показываете «скоро будет» и email-форму.</p>
+      <p><strong>Пример — Ozon Fresh (B2C · РФ):</strong> перед реальным запуском доставки продуктов тестировали кнопку «Fresh» в приложении в ограниченных городах. Замеряли CTR и конверсию — до того, как строить дарксторы.</p>
+      <p class="subtle">Этика: через 1–2 недели фичу либо делаете, либо убираете. Не оставляйте fake door на месяцы — это разрушает доверие.</p>
+    </section>
+
+    <!-- Slide 34: Формат 6 — Лоскутный -->
+    <section class="slide" data-block="6">
+      <div class="kicker">Формат 6 · Лоскутный MVP (Piecemeal)</div>
+      <h3>Собрать из готовых инструментов</h3>
+      <p class="lead">Флоу работает, но вы не пишете его вручную. AI-ассистенты (Claude Code, Codex, Cursor) собирают его по вашему описанию и подключают готовые сервисы.</p>
+      <p><strong>Кейс — Groupon (B2C · США):</strong> первая версия — WordPress-блог, PDF-купоны, вручную отправлявшиеся в email. Никакой CRM, никакой автоматизации. Через полгода — оформили код. Через 3 года — IPO на $13 млрд.</p>
+      <p class="accent">Стек апрель 2026: код через AI (Claude Code, Codex, Cursor, Lovable) + домен + сервер (чтобы развернуть проект публично). Неделя работы одного человека.</p>
+    </section>
+
+    <!-- Slide 35: Сводная таблица -->
+    <section class="slide" data-block="6">
+      <div class="kicker">Шпаргалка для выбора</div>
+      <h3>Формат → что проверяет → как долго</h3>
+      <table>
+        <thead>
+          <tr><th>Формат</th><th>Что проверяет</th><th>Срок</th><th>Бюджет</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Интервью</td><td>Есть ли работа, кто конкуренты, критерии успеха</td><td>1–2 нед</td><td>0 ₽</td></tr>
+          <tr><td>Лендинг</td><td>Готовность платить</td><td>3–7 дней</td><td>0 ₽ (Tilda) / $20 (AI)</td></tr>
+          <tr><td>Волшебник Оз</td><td>Нужен ли продукт как таковой</td><td>1–4 нед</td><td>Время</td></tr>
+          <tr><td>Консьерж</td><td>Какая именно ценность создаётся</td><td>1–3 мес</td><td>Время</td></tr>
+          <tr><td>Fake Door</td><td>Интересна ли конкретная фича</td><td>1–2 нед</td><td>0 ₽</td></tr>
+          <tr><td>Лоскутный</td><td>Работает ли весь флоу от и до</td><td>1–4 нед</td><td>$20–50</td></tr>
+        </tbody>
+      </table>
+      <p class="subtle accent">Правило: если можете обойтись без кода — обходитесь без кода. Код — в последнюю очередь.</p>
+    </section>
+
+    <!-- ============== БЛОК 7: ЕСЛИ НУЖЕН КОД ============== -->
+
+    <!-- Slide 36: Section -->
+    <section class="slide slide-section" data-block="7">
+      <div>
+        <div class="kicker">Блок 7 · 12 минут</div>
+        <div class="section-num">06</div>
+        <h1>Если всё-таки<br>нужен код</h1>
+      </div>
+    </section>
+
+    <!-- Slide 37: Правило 4 недель -->
+    <section class="slide" data-block="7">
+      <div class="kicker">Главное правило разработки MVP</div>
+      <h3>4 недели — потолок</h3>
+      <p class="lead">Если разработка MVP занимает дольше 4 недель — это не MVP. Это продукт, который <em>не успеет</em> дать знание быстрее, чем закончится бюджет или окно возможностей.</p>
+      <p><strong>Кейс — Stripe (B2B · США):</strong> братья Коллисон запустили первую версию за несколько недель. Ключевое демо — <strong>7 строк кода</strong>, после которых сайт принимает платежи. Всё остальное (дашборд, отчёты, антифрод) — добавляли потом.</p>
+      <p class="accent">Не влезает в 4 недели → режьте фичи. Не режется → значит это уже не MVP.</p>
+    </section>
+
+    <!-- Slide 38: MoSCoW -->
+    <section class="slide" data-block="7">
+      <div class="kicker">Как расставить приоритеты</div>
+      <h3>MoSCoW: как решать, что резать</h3>
+      <table>
+        <thead>
+          <tr><th>Буква</th><th>Что это</th><th>Попадает в MVP?</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><strong>Must</strong></td><td><strong>Обязательно</strong> — без чего Core Job не выполнится</td><td>Да</td></tr>
+          <tr><td><strong>Should</strong></td><td><strong>Желательно</strong> — важное, но можно заменить костылём</td><td><span class="accent">Иногда — костыль</span></td></tr>
+          <tr><td><strong>Could</strong></td><td><strong>Возможно</strong> — приятные фичи, улучшают опыт</td><td>Нет</td></tr>
+          <tr><td><strong>Won't</strong></td><td><strong>Не в этот раз</strong> — явно вне объёма релиза</td><td>Нет</td></tr>
+        </tbody>
+      </table>
+      <p class="accent"><strong>Правило 60%:</strong> если Must занимает больше 60% объёма — режьте. Остальное — буфер на неожиданности. Если Must не режется — формулируете фичи, а не работы; откатитесь на уровень Core Job.</p>
+      <p class="subtle">Won't — самая недооценённая категория. Явный «нет» экономит часы встреч «а давайте ещё добавим…».</p>
+    </section>
+
+    <!-- Slide 39: Один Core Job — Slack -->
+    <section class="slide" data-block="7">
+      <div class="kicker">Один Core Job</div>
+      <h3>MVP выполняет одну Core Job.<br>Всё остальное — убрать</h3>
+      <p class="lead">Если MVP делает две-три работы одновременно — вы не сможете понять, которая из них принесла PMF (или нет).</p>
+      <p><strong>Кейс — Slack (B2B · США):</strong> начался как <em>внутренний инструмент</em> игровой студии Tiny Speck для общения команды. Одна Core Job — «быстро общаться по рабочим вопросам внутри команды». Никаких звонков, тредов, каналов с приглашёнными — это появилось сильно позже. В 2014 запустили наружу — за сутки 8 000 команд подписались.</p>
+      <p class="subtle">Важно: внутренний инструмент Tiny Speck — тоже форма MVP. Их product/market fit проверился на себе до того, как пошли к клиентам.</p>
+    </section>
+
+    <!-- Slide 40: amoCRM — B2B РФ -->
+    <section class="slide" data-block="7">
+      <div class="kicker">Кейс · B2B · РФ</div>
+      <h3>amoCRM: минимальная CRM для одного отдела продаж</h3>
+      <p class="lead">Михаил и Пётр Токовинины запускали QSOFT — agency по разработке. Увидели боль клиентов: большие CRM (Bitrix, Salesforce) слишком сложны для малого бизнеса. Сделали сфокусированный продукт.</p>
+      <ul>
+        <li><strong>Одна Core Job:</strong> вести воронку продаж в таблице «сделок»</li>
+        <li><strong>Отрезали:</strong> бухгалтерию, складской учёт, документооборот, проекты</li>
+        <li><strong>MVP:</strong> первая работающая версия за 3 месяца (до 10 человек в команде, подписочная модель)</li>
+      </ul>
+      <p class="accent">Сегодня — одна из крупнейших CRM в СНГ. Начинали как «простая таблица сделок», а не как «CRM платформа».</p>
+    </section>
+
+    <!-- Slide 41: Аналитика с первого дня -->
+    <section class="slide" data-block="7">
+      <div class="kicker">Что встроить в MVP</div>
+      <h3>Аналитика с первого дня · 3 метрики-маяка</h3>
+      <p class="lead">MVP без аналитики = вы не узнаете, что получилось. Встраивайте замеры <strong>до</strong> первого пользователя.</p>
+      <ol>
+        <li><strong>Активация</strong> — сколько пользователей дошли до ага-момента (момент, когда почувствовали ценность)</li>
+        <li><strong>Retention</strong> — вернулись ли через день / неделю / месяц</li>
+        <li><strong>WTP</strong> — сколько готовы платить (даже если в MVP всё бесплатно — спрашивайте)</li>
+      </ol>
+      <p class="subtle">Любая аналитика лучше отсутствия аналитики. Даже гугл-таблица вручную. Но <em>запланировать метрики</em> нужно до старта — иначе забудете.</p>
+    </section>
+
+    <!-- ============== БЛОК 8: КОГДА MVP УДАЛСЯ ============== -->
+
+    <!-- Slide 42: Section -->
+    <section class="slide slide-section" data-block="8">
+      <div>
+        <div class="kicker">Блок 8 · 8 минут</div>
+        <div class="section-num">07</div>
+        <h1>Когда MVP удался</h1>
+      </div>
+    </section>
+
+    <!-- Slide 43: Sean Ellis test -->
+    <section class="slide" data-block="8">
+      <div class="kicker">Тест Шона Эллиса · классический порог PMF</div>
+      <h3>40% «сильно расстроятся» — и у вас PMF</h3>
+      <p class="lead">Вопрос пользователям, уже пользовавшимся продуктом 2+ недели:</p>
+      <div class="quote">«Как вы будете себя чувствовать, если этот продукт завтра перестанет существовать?»</div>
+      <p><strong>Варианты ответа:</strong> сильно расстроюсь / немного расстроюсь / не расстроюсь.</p>
+      <p class="accent">Если <strong>40%+</strong> отвечают «сильно расстроюсь» — у вас сильный сигнал PMF. Ниже 40% — продолжать искать. Порог выведен на десятках тысяч стартапов (Sean Ellis, Dropbox, HubSpot).</p>
+    </section>
+
+    <!-- Slide 44: LTV / CAC -->
+    <section class="slide" data-block="8">
+      <div class="kicker">Юнит-экономика · базовый порог</div>
+      <h3>LTV ÷ CAC ≥ 3</h3>
+      <p class="lead">Второй тест PMF — финансовый. Ценность клиента за жизнь <strong>в 3 раза</strong> больше, чем стоимость его привлечения.</p>
+      <p><strong>LTV</strong> — средний доход с одного <em>платящего</em> клиента за всю его жизнь в продукте. Считается только по покупателям, не по всем пришедшим.</p>
+      <ul>
+        <li><strong>LTV &lt; CAC</strong> — экономика отрицательная, масштабирование ускоряет смерть</li>
+        <li><strong>LTV ≈ CAC</strong> — выживаете, но нет ресурса на рост</li>
+        <li><strong>LTV ≥ 3 × CAC</strong> — можно масштабировать канал</li>
+      </ul>
+      <p class="subtle">Для MVP с малым числом пользователей — считайте по <em>наблюдаемым</em> данным, а не по прогнозу. «Честный LTV» (с учётом реального retention) ≠ «псевдо-LTV» (по средней цене × ожидаемая жизнь).</p>
+    </section>
+
+    <!-- Slide 45: Чеклист готовности к Channel Testing -->
+    <section class="slide" data-block="8">
+      <div class="kicker">Переход на следующий этап</div>
+      <h3>Когда можно идти в Channel Testing</h3>
+      <ol>
+        <li>Подтверждён сегмент и ценность (Sean Ellis 40%+)</li>
+        <li>Есть <strong>повторяемые</strong> продажи, не единичные</li>
+        <li>Юнит-экономика <strong>сходится</strong> на реальных данных</li>
+        <li>Активация и retention измеряются и стабильны</li>
+        <li>Вы знаете, <strong>за что именно</strong> клиенты платят (какая Core Job)</li>
+      </ol>
+      <p class="accent">Если хоть один пункт не выполнен — не идите в платные каналы. Деньги на привлечение = деньги на ветер, пока ценность не доказана.</p>
+    </section>
+
+    <!-- ============== БЛОК 9: ИТОГИ + Q&A ============== -->
+
+    <!-- Slide 46: 5 мыслей -->
+    <section class="slide" data-block="9">
+      <div class="kicker">Главное</div>
+      <h3>5 мыслей, которые стоит унести</h3>
+      <ol>
+        <li><strong>MVP — не запуск, а покупка знания.</strong> Если продукт не дал нового знания — это не MVP</li>
+        <li><strong>Код — в последнюю очередь.</strong> Сначала интервью, RAT, лендинг, Волшебник Оз</li>
+        <li><strong>4 недели — потолок.</strong> Не влезает — режьте или меняйте формат</li>
+        <li><strong>Один Core Job на MVP.</strong> Несколько работ = невозможность понять, что сработало</li>
+        <li><strong>Channel Testing — только после подтверждённой ценности.</strong> Платные каналы не лечат отсутствие PMF</li>
+      </ol>
+    </section>
+
+    <!-- Slide 47: Q&A и следующие встречи -->
+    <section class="slide slide-title" data-block="9">
+      <div>
+        <div class="kicker">Что дальше</div>
+        <h1>Вопросы?</h1>
+        <h2 style="margin-top:28px; font-size: clamp(18px, 2.2vw, 24px); color: rgba(255,255,255,0.7);">Следующая встреча</h2>
+        <p style="font-size: clamp(16px, 2vw, 22px); margin-top: 16px;"><span class="accent"><strong>Воркшоп: PRD + лендинг/прототип</strong></span></p>
+        <p style="opacity:0.85; font-size: clamp(14px, 1.7vw, 18px);">пятница или суббота — день уточним дополнительно</p>
+        <br>
+        <p class="accent" style="font-size: clamp(13px, 1.5vw, 16px);"><strong>Домашка:</strong> пройдитесь по чеклисту из 7 пунктов на своей идее. Выберите формат MVP под самое рискованное допущение. Запустите <em>один</em> эксперимент за эту неделю. Помощь по RAT и допущениям — <a href="https://lab.skillset.design/" style="color: var(--orange); border-bottom: 1px solid var(--orange); text-decoration: none;">lab.skillset.design</a>, промокод <strong>AKSELHSE</strong> для участников акселератора.</p>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- NAVIGATION -->
+  <nav class="nav">
+    <button class="nav-btn arrow" id="prev" title="Назад (←)">←</button>
+    <button class="nav-btn nav-jump" id="jump-start" title="В начало (Home)">↤</button>
+    <button class="nav-btn nav-jump" id="jump-block" title="Перейти к блоку (B)">Блок</button>
+    <button class="nav-btn arrow" id="next" title="Вперёд (→ или пробел)">→</button>
+  </nav>
+
+  <!-- HELP OVERLAY -->
+  <div class="help" id="help">
+    <h4>Горячие клавиши</h4>
+    <p><kbd>→</kbd> <kbd>Space</kbd> — следующий слайд</p>
+    <p><kbd>←</kbd> — предыдущий слайд</p>
+    <p><kbd>P</kbd> — пауза / старт таймера</p>
+    <p><kbd>R</kbd> — сбросить таймеры</p>
+    <p><kbd>B</kbd> — перейти к началу блока</p>
+    <p><kbd>Home</kbd> — в самое начало</p>
+    <p><kbd>H</kbd> — скрыть/показать подсказки</p>
+  </div>
+
+  <script>
+    // ============== BLOCKS ==============
+    const BLOCKS = [
+      { id: 1, name: 'Вступление', targetMin: 5 },
+      { id: 2, name: 'Что такое MVP на самом деле', targetMin: 10 },
+      { id: 3, name: '7 слепых зон на пути к PMF', targetMin: 12 },
+      { id: 4, name: 'Правильная последовательность', targetMin: 10 },
+      { id: 5, name: 'Чеклист ДО начала MVP', targetMin: 10 },
+      { id: 6, name: '6 форматов MVP без кода', targetMin: 20 },
+      { id: 7, name: 'Если всё-таки нужен код', targetMin: 12 },
+      { id: 8, name: 'Когда MVP удался', targetMin: 8 },
+      { id: 9, name: 'Итоги + Q&A', targetMin: 3 }
+    ];
+
+    // ============== STATE ==============
+    const slides = document.querySelectorAll('.slide');
+    const TOTAL_SLIDES = slides.length;
+    const TOTAL_TARGET_SEC = 90 * 60;
+
+    let currentSlide = 0;
+    let totalSeconds = 0;
+    let blockSeconds = {};
+    let currentBlockId = 1;
+    let isPaused = true;
+    let hasStarted = false;
+
+    // ============== DOM ==============
+    const $ = id => document.getElementById(id);
+    const slideNumEl = $('slide-num');
+    const slideTotalEl = $('slide-total');
+    const blockNameEl = $('block-name');
+    const blockTimeEl = $('block-time');
+    const blockTargetEl = $('block-target');
+    const totalTimeEl = $('total-time');
+    const progressFillEl = $('progress-fill');
+    const blockTimerEl = $('block-timer');
+    const totalTimerEl = $('total-timer');
+    const pauseBtn = $('pause-btn');
+    const resetBtn = $('reset-btn');
+    const helpBtn = $('help-btn');
+    const helpEl = $('help');
+    const prevBtn = $('prev');
+    const nextBtn = $('next');
+    const jumpStartBtn = $('jump-start');
+    const jumpBlockBtn = $('jump-block');
+
+    slideTotalEl.textContent = TOTAL_SLIDES;
+
+    // ============== HELPERS ==============
+    function formatTime(sec) {
+      const m = Math.floor(sec / 60);
+      const s = sec % 60;
+      return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    }
+
+    function getBlock(id) {
+      return BLOCKS.find(b => b.id === id);
+    }
+
+    function getSlideBlockId(idx) {
+      return parseInt(slides[idx].dataset.block);
+    }
+
+    // ============== RENDER ==============
+    function updateStatusBar() {
+      const blockId = getSlideBlockId(currentSlide);
+      currentBlockId = blockId;
+      const block = getBlock(blockId);
+
+      slideNumEl.textContent = currentSlide + 1;
+      blockNameEl.textContent = `Блок ${blockId} · ${block.name}`;
+
+      const bs = blockSeconds[blockId] || 0;
+      blockTimeEl.textContent = formatTime(bs);
+      blockTargetEl.textContent = `${block.targetMin}:00`;
+
+      totalTimeEl.textContent = formatTime(totalSeconds);
+
+      progressFillEl.style.width = `${((currentSlide + 1) / TOTAL_SLIDES) * 100}%`;
+
+      blockTimerEl.classList.toggle('over', bs > block.targetMin * 60);
+      totalTimerEl.classList.toggle('over', totalSeconds > TOTAL_TARGET_SEC);
+
+      prevBtn.disabled = currentSlide === 0;
+      nextBtn.disabled = currentSlide === TOTAL_SLIDES - 1;
+    }
+
+    function showSlide(n) {
+      if (n < 0 || n >= TOTAL_SLIDES) return;
+      slides[currentSlide].classList.remove('active');
+      currentSlide = n;
+      slides[currentSlide].classList.add('active');
+
+      window.scrollTo({ top: 0, behavior: 'instant' });
+      const slidesEl = document.getElementById('slides');
+      if (slidesEl) slidesEl.scrollTop = 0;
+
+      if (!hasStarted && n > 0) {
+        hasStarted = true;
+        isPaused = false;
+        pauseBtn.textContent = '⏸';
+        pauseBtn.classList.remove('paused');
+      }
+
+      updateStatusBar();
+    }
+
+    function next() { showSlide(currentSlide + 1); }
+    function prev() { showSlide(currentSlide - 1); }
+
+    function jumpToBlockStart() {
+      for (let i = currentSlide; i >= 0; i--) {
+        if (slides[i].classList.contains('slide-section') || i === 0) {
+          showSlide(i);
+          return;
+        }
+      }
+    }
+
+    function togglePause() {
+      if (!hasStarted) {
+        hasStarted = true;
+        isPaused = false;
+        pauseBtn.textContent = '⏸';
+        pauseBtn.classList.remove('paused');
+        return;
+      }
+      isPaused = !isPaused;
+      pauseBtn.textContent = isPaused ? '▶' : '⏸';
+      pauseBtn.classList.toggle('paused', isPaused);
+    }
+
+    function resetTimers() {
+      if (!confirm('Сбросить оба таймера в ноль?')) return;
+      totalSeconds = 0;
+      blockSeconds = {};
+      hasStarted = false;
+      isPaused = true;
+      pauseBtn.textContent = '▶';
+      pauseBtn.classList.add('paused');
+      updateStatusBar();
+    }
+
+    function toggleHelp() {
+      helpEl.classList.toggle('visible');
+    }
+
+    // ============== TIMER TICK ==============
+    setInterval(() => {
+      if (!isPaused && hasStarted) {
+        totalSeconds++;
+        blockSeconds[currentBlockId] = (blockSeconds[currentBlockId] || 0) + 1;
+        updateStatusBar();
+      }
+    }, 1000);
+
+    // ============== KEYBOARD ==============
+    document.addEventListener('keydown', (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { e.preventDefault(); next(); }
+      else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); prev(); }
+      else if (e.key === 'p' || e.key === 'P') { e.preventDefault(); togglePause(); }
+      else if (e.key === 'r' || e.key === 'R') { resetTimers(); }
+      else if (e.key === 'b' || e.key === 'B') { jumpToBlockStart(); }
+      else if (e.key === 'h' || e.key === 'H') { toggleHelp(); }
+      else if (e.key === 'Home') { showSlide(0); }
+      else if (e.key === 'End') { showSlide(TOTAL_SLIDES - 1); }
+    });
+
+    // ============== CLICKS ==============
+    prevBtn.addEventListener('click', prev);
+    nextBtn.addEventListener('click', next);
+    pauseBtn.addEventListener('click', togglePause);
+    resetBtn.addEventListener('click', resetTimers);
+    helpBtn.addEventListener('click', toggleHelp);
+    jumpStartBtn.addEventListener('click', () => showSlide(0));
+    jumpBlockBtn.addEventListener('click', jumpToBlockStart);
+
+    // ============== TOUCH SWIPE ==============
+    let touchStartX = 0;
+    let touchStartY = 0;
+    document.addEventListener('touchstart', (e) => {
+      touchStartX = e.changedTouches[0].screenX;
+      touchStartY = e.changedTouches[0].screenY;
+    }, { passive: true });
+    document.addEventListener('touchend', (e) => {
+      const dx = e.changedTouches[0].screenX - touchStartX;
+      const dy = e.changedTouches[0].screenY - touchStartY;
+      if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy)) {
+        if (dx < 0) next(); else prev();
+      }
+    }, { passive: true });
+
+    // ============== INIT ==============
+    updateStatusBar();
+  </script>
+</body>
+</html>
